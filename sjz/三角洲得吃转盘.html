@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>三角洲</title>
+<style>
+  body {
+    font-family: "微软雅黑", "SimHei", sans-serif;
+    text-align: center;
+    margin: 0; padding: 20px;
+    background: #f9f9f9;
+  }
+  .wheel-container {
+    display: inline-block;
+    margin: 20px;
+    vertical-align: top;
+  }
+  canvas {
+    background: white;
+    border: 3px solid #333;
+    border-radius: 50%;
+    display: block;
+    margin: 0 auto;
+  }
+  button {
+    margin-top: 10px;
+    font-size: 16px;
+    padding: 8px 20px;
+    cursor: pointer;
+  }
+  .result {
+    margin-top: 8px;
+    font-size: 18px;
+    color: #d33;
+    font-weight: bold;
+    min-height: 30px;
+  }
+</style>
+</head>
+<body>
+<h1>🎡 三角洲</h1>
+
+<div class="wheel-container">
+  <canvas id="wheel1" width="300" height="300"></canvas>
+  <button id="spin1">开始转盘1</button>
+  <div id="result1" class="result"></div>
+</div>
+
+<div class="wheel-container">
+  <canvas id="wheel2" width="300" height="300"></canvas>
+  <button id="spin2">开始转盘2</button>
+  <div id="result2" class="result"></div>
+</div>
+
+<div class="wheel-container">
+  <canvas id="wheel3" width="300" height="300"></canvas>
+  <button id="spin3">开始转盘3</button>
+  <div id="result3" class="result"></div>
+</div>
+
+<script>
+class SpinningWheel {
+  constructor(canvasId, options, resultId, buttonId) {
+    this.options = options;
+    this.canvas = document.getElementById(canvasId);
+    this.ctx = this.canvas.getContext("2d");
+    this.centerX = this.canvas.width / 2;
+    this.centerY = this.canvas.height / 2;
+    this.radius = 130;
+    this.segmentAngle = 2 * Math.PI / this.options.length;
+    this.colors = [
+      "#FF9999", "#99CCFF", "#99FF99", "#FFCC99", "#CC99FF", "#FFFF99", "#FF9966", "#66CC99"
+    ];
+    // 扩展颜色数组以防止颜色不足
+    while (this.colors.length < this.options.length) {
+      this.colors.push('#'+Math.floor(Math.random()*16777215).toString(16));
+    }
+
+    this.startAngle = 0;
+    this.isSpinning = false;
+    this.spinTimeout = null;
+    this.spinSpeed = 0;
+    this.deceleration = 0.97;
+
+    this.resultElem = document.getElementById(resultId);
+    this.button = document.getElementById(buttonId);
+    this.button.addEventListener("click", () => this.startSpin());
+
+    this.drawWheel(this.startAngle);
+  }
+
+  drawWheel(angle) {
+    const ctx = this.ctx;
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+    for (let i = 0; i < this.options.length; i++) {
+      const angleStart = angle + i * this.segmentAngle;
+      const angleEnd = angleStart + this.segmentAngle;
+
+      // 扇形
+      ctx.fillStyle = this.colors[i % this.colors.length];
+      ctx.beginPath();
+      ctx.moveTo(this.centerX, this.centerY);
+      ctx.arc(this.centerX, this.centerY, this.radius, angleStart, angleEnd);
+      ctx.closePath();
+      ctx.fill();
+
+      // 文字
+      ctx.save();
+      ctx.fillStyle = "#000";
+      ctx.translate(this.centerX, this.centerY);
+      ctx.rotate(angleStart + this.segmentAngle / 2);
+      ctx.textAlign = "right";
+      ctx.font = "14px SimHei, sans-serif";
+      ctx.fillText(this.options[i], this.radius - 10, 10);
+      ctx.restore();
+    }
+
+    // 中心圆
+    ctx.beginPath();
+    ctx.arc(this.centerX, this.centerY, 30, 0, 2 * Math.PI);
+    ctx.fillStyle = "#fff";
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // 指针（红色三角形，顶部中间，尖头朝下）
+    ctx.fillStyle = "red";
+    ctx.beginPath();
+    ctx.moveTo(this.centerX - 15, this.centerY - this.radius - 10);
+    ctx.lineTo(this.centerX + 15, this.centerY - this.radius - 10);
+    ctx.lineTo(this.centerX, this.centerY - this.radius + 20);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  startSpin() {
+    if (this.isSpinning) return;
+    this.isSpinning = true;
+    this.resultElem.textContent = "旋转中...";
+    this.spinSpeed = Math.random() * 0.3 + 0.25;
+    this.spin();
+  }
+
+  spin() {
+    if (this.spinSpeed <= 0.01) {
+      clearTimeout(this.spinTimeout);
+      this.isSpinning = false;
+      this.showResult();
+      return;
+    }
+    this.startAngle += this.spinSpeed;
+    this.startAngle %= 2 * Math.PI;
+    this.drawWheel(this.startAngle);
+    this.spinSpeed *= this.deceleration;
+    this.spinTimeout = setTimeout(() => this.spin(), 30);
+  }
+
+  showResult() {
+    // 指针固定在顶部（角度0，向上）
+    // 计算当前指向的扇区index
+    const selectedAngle = (3 * Math.PI / 2 - this.startAngle + 2 * Math.PI) % (2 * Math.PI);
+    const selectedIndex = Math.floor(selectedAngle / this.segmentAngle) % this.options.length;
+    const resultText = this.options[selectedIndex];
+    this.resultElem.textContent = `🎯 结果：${resultText}`;
+  }
+}
+
+const wheel1Options = ["机密大坝", "机密长弓", "机密巴克什", "机密航天", "绝密巴克什", "绝密航天", "绝密监狱"];
+const wheel2Options = ["三套", "四套", "五套", "六套"];
+const wheel3Options = ["绿弹", "蓝弹", "紫弹", "金弹"];
+
+const wheel1 = new SpinningWheel("wheel1", wheel1Options, "result1", "spin1");
+const wheel2 = new SpinningWheel("wheel2", wheel2Options, "result2", "spin2");
+const wheel3 = new SpinningWheel("wheel3", wheel3Options, "result3", "spin3");
+</script>
+</body>
+</html>
